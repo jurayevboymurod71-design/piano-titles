@@ -3,81 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Piano Tiles RGB Pro (Oq Fon)</title>
+    <title>Piano Tiles - Classic</title>
     <style>
-        body { margin: 0; background: #fff; overflow: hidden; touch-action: none; font-family: sans-serif; } /* Fon oq rangga o'zgartirildi */
+        /* Orqa fon och kulrangga o'zgartirildi */
+        body { margin: 0; background: #222; overflow: hidden; touch-action: none; font-family: sans-serif; }
         
         @keyframes borderGlow {
             0% { border-color: #00f2ff; box-shadow: 0 0 10px #00f2ff; }
-            25% { border-color: #00ff00; box-shadow: 0 0 10px #00ff00; }
             50% { border-color: #ff00ff; box-shadow: 0 0 10px #ff00ff; }
-            75% { border-color: #ffff00; box-shadow: 0 0 10px #ffff00; }
             100% { border-color: #00f2ff; box-shadow: 0 0 10px #00f2ff; }
         }
+
+        #main-menu, #result-screen {
+            position: absolute; width: 100%; height: 100%; background: #222;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 100; color: #fff;
+        }
+
+        #result-screen { display: none; } /* Natija ekrani boshida yashirin */
+
+        .menu-btn {
+            background: #00f2ff; color: #000; border: none; padding: 20px 50px;
+            font-size: 24px; font-weight: bold; border-radius: 40px;
+            cursor: pointer; box-shadow: 0 0 20px #00f2ff; transition: 0.2s;
+        }
+        .menu-btn:active { transform: scale(0.95); }
 
         #game-container { 
             width: 100vw; height: 100vh; 
             position: relative; 
-            background: #fff; /* O'yin maydoni foni ham oq */
+            background: #222; 
             border-left: 5px solid #00f2ff;
             border-right: 5px solid #00f2ff;
             box-sizing: border-box;
             animation: borderGlow 8s infinite linear;
+            display: none;
         }
 
         .tile {
             position: absolute; width: 25%; height: 200px;
             box-sizing: border-box;
-            border: 0.5px solid rgba(0, 0, 0, 0.1); /* To'q rangli chegara qo'shildi, oq fonda ko'rinishi uchun */
+            border: 0.5px solid rgba(255, 255, 255, 0.05);
         }
 
-        .white-tile { background: #fff; } /* Fon oq bo'lgani uchun 'white-tile' oq rangda */
-
+        .white-tile { background: #2a2a2a; }
         .black-tile { 
             background: #000; 
             border: 1px solid rgba(0, 255, 0, 0.3);
-            box-shadow: inset 0 0 10px rgba(0, 255, 0, 0.2);
+            box-shadow: inset 0 0 15px rgba(0, 255, 0, 0.2);
         }
-
-        .hit { transition: background 0.1s; }
 
         #score {
             position: absolute; top: 40px; left: 50%;
-            transform: translateX(-50%); 
-            color: #000; /* Ball rangini qoraga o'zgartirdik, oq fonda ko'rinishi uchun */
-            font-size: 70px; font-weight: bold; z-index: 10;
-            pointer-events: none; 
-            text-shadow: 0 0 10px rgba(0, 0, 0, 0.2); /* Soya ham dark bo'lishi kerak */
+            transform: translateX(-50%); color: rgba(255, 255, 255, 0.3);
+            font-size: 80px; font-weight: bold; z-index: 10;
+            pointer-events: none; text-shadow: 0 0 15px rgba(255,255,255,0.1);
+            display: none;
         }
+
+        .final-score { font-size: 60px; color: #00f2ff; margin: 20px 0; font-weight: bold; }
     </style>
 </head>
 <body>
+
+    <div id="main-menu">
+        <h1 style="font-size: 40px; margin-bottom: 30px;">PIANO TILES</h1>
+        <button class="menu-btn" onclick="startGame()">O'YINNI BOSHLASH</button>
+    </div>
+
+    <div id="result-screen">
+        <h2 style="margin: 0; color: #aaa;">NATIJA:</h2>
+        <div id="final-score-val" class="final-score">0</div>
+        <button class="menu-btn" onclick="startGame()">QAYTA BOSHLASH</button>
+    </div>
+
     <div id="score">0</div>
     <div id="game-container"></div>
 
     <script>
-      // Ovoz tizimini tayyorlash
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-// PPK - Resurection kuyi notalari chastotasi
-const notesFreq = {
-    "e4": 329.63, "b4": 493.88, "e5": 659.25, "g4": 392.00,
-    "d4": 293.66, "a4": 440.00, "d5": 587.33, "f4": 349.23,
-    "c4": 261.63, "c5": 523.25, "b3": 246.94
-};
-
-// Kuy ketma-ketligi
-const resurrectionSong = [
-    "e4", "b4", "e5", "b4", "g4", "b4", "e4", "b4",
-    "e4", "b4", "e5", "b4", "g4", "b4", "e4", "b4",
-    "d4", "a4", "d5", "a4", "f4", "a4", "d4", "a4"
-];
-let currentNoteIndex = 0;
         const container = document.getElementById('game-container');
         const scoreElement = document.getElementById('score');
+        const mainMenu = document.getElementById('main-menu');
+        const resultScreen = document.getElementById('result-screen');
+        const finalScoreVal = document.getElementById('final-score-val');
         
         let score = 0;
-        let gameActive = true;
+        let gameActive = false;
         let gameSpeed = 9; 
         let spawnInterval = 400; 
         let lastSpawn = 0;
@@ -100,6 +111,23 @@ let currentNoteIndex = 0;
 
         const rainbowColors = ["#00f2ff", "#00ff00", "#ff00ff", "#ffff00", "#ff4500"];
 
+        function startGame() {
+            mainMenu.style.display = 'none';
+            resultScreen.style.display = 'none';
+            container.style.display = 'block';
+            scoreElement.style.display = 'block';
+            
+            // Parametrlarni tiklash
+            score = 0;
+            gameSpeed = 9;
+            spawnInterval = 400;
+            scoreElement.innerText = "0";
+            container.innerHTML = "";
+            tiles = [];
+            gameActive = true;
+            requestAnimationFrame(update);
+        }
+
         function createRow() {
             const blackIndex = Math.floor(Math.random() * 4);
             for (let i = 0; i < 4; i++) {
@@ -113,63 +141,40 @@ let currentNoteIndex = 0;
                     tileElement.dataset.clicked = "false";
                     const handleEvent = (e) => {
                         e.preventDefault();
+                        if (!gameActive) return;
                         if (tileElement.dataset.clicked === "false") {
                             tileElement.dataset.clicked = "true";
-                            
                             playPianoSound();
-
                             const color = rainbowColors[Math.floor(Math.random() * rainbowColors.length)];
                             tileElement.style.backgroundColor = color;
                             tileElement.style.boxShadow = `0 0 30px ${color}`;
-                            
                             score++;
                             scoreElement.innerText = score;
+                            
                             if (score % 15 === 0) {
-                                gameSpeed += 1.5; 
-                                spawnInterval = Math.max(180, spawnInterval - 40);
+                                gameSpeed += 1.2; 
+                                spawnInterval = Math.max(180, spawnInterval - 30);
                             }
                         }
                     };
                     tileElement.addEventListener('touchstart', handleEvent);
                     tileElement.onclick = handleEvent;
                 } else {
-                    tileElement.onclick = gameOver;
-                    tileElement.addEventListener('touchstart', gameOver);
+                    const fail = (e) => {
+                        e.preventDefault();
+                        if (gameActive) gameOver();
+                    }
+                    tileElement.onclick = fail;
+                    tileElement.addEventListener('touchstart', fail);
                 }
-
                 container.appendChild(tileElement);
                 tiles.push({ element: tileElement, top: topPos, isBlack: i === blackIndex });
-                playPianoSound()
             }
         }
 
         function update(time) {
             if (!gameActive) return;
             if (time - lastSpawn > spawnInterval) {
-              function playPianoSound() {
-    // Agar audio "uxlayotgan" bo'lsa, uni uyg'otamiz
-    if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
-
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-
-    oscillator.type = 'triangle'; // Yumshoq piyanino ovozi
-    oscillator.frequency.setValueAtTime(notesFreq[resurrectionSong[currentNoteIndex]], audioCtx.currentTime);
-
-    gainNode.gain.setValueAtTime(0.4, audioCtx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.4);
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-
-    oscillator.start();
-    oscillator.stop(audioCtx.currentTime + 0.4);
-
-    // Keyingi notaga o'tish
-    currentNoteIndex = (currentNoteIndex + 1) % resurrectionSong.length;
-}
                 createRow();
                 lastSpawn = time;
             }
@@ -192,18 +197,13 @@ let currentNoteIndex = 0;
         function gameOver() {
             if (!gameActive) return;
             gameActive = false;
-            alert("O'yin tugadi! Ball: " + score);
-            location.reload();
+            
+            // Natijani ekranga chiqarish
+            finalScoreVal.innerText = score;
+            container.style.display = 'none';
+            scoreElement.style.display = 'none';
+            resultScreen.style.display = 'flex';
         }
-
-        requestAnimationFrame(update);
     </script>
 </body>
 </html>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script>
-    const tg = window.Telegram.WebApp;
-    tg.ready();
-    tg.expand(); // O'yinni ekranga to'liq yoyadi
-</script>
-
